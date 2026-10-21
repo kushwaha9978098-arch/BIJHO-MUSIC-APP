@@ -1,0 +1,153 @@
+name: BIJHO MUSIC APP APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+ jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Create Android project
+        shell: bash
+        run: |
+          mkdir -p app/src/main/java/com/bijho/music
+          cat > settings.gradle <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
+          rootProject.name = 'BIJHO-MUSIC-APP'
+          include ':app'
+          EOF
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.7.3' apply false
+              id 'org.jetbrains.kotlin.android' version '2.0.21' apply false
+              id 'org.jetbrains.kotlin.plugin.compose' version '2.0.21' apply false
+          }
+          EOF
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+              id 'org.jetbrains.kotlin.android'
+              id 'org.jetbrains.kotlin.plugin.compose'
+          }
+          android {
+              namespace 'com.bijho.music'
+              compileSdk 35
+              defaultConfig { applicationId 'com.bijho.music'; minSdk 23; targetSdk 35; versionCode 1; versionName '1.0' }
+              buildFeatures { compose true }
+          }
+          dependencies {
+              implementation platform('androidx.compose:compose-bom:2024.12.01')
+              implementation 'androidx.activity:activity-compose:1.10.0'
+              implementation 'androidx.compose.ui:ui'
+              implementation 'androidx.compose.ui:ui-tooling-preview'
+              implementation 'androidx.compose.material3:material3'
+              implementation 'androidx.compose.material:material-icons-extended'
+          }
+          EOF
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"><application android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="BIJHO MUSIC APP" android:usesCleartextTraffic="false"><activity android:name=".MainActivity" android:exported="true"><intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter></activity></application></manifest>
+          EOF
+          cat > app/src/main/java/com/bijho/music/MainActivity.kt <<'EOF'
+          package com.bijho.music
+          import android.os.Bundle
+          import androidx.activity.ComponentActivity
+          import androidx.activity.compose.setContent
+          import androidx.compose.foundation.*
+          import androidx.compose.foundation.layout.*
+          import androidx.compose.foundation.lazy.*
+          import androidx.compose.foundation.shape.RoundedCornerShape
+          import androidx.compose.material.icons.Icons
+          import androidx.compose.material.icons.filled.*
+          import androidx.compose.material3.*
+          import androidx.compose.runtime.*
+          import androidx.compose.ui.*
+          import androidx.compose.ui.graphics.*
+          import androidx.compose.ui.text.font.FontWeight
+          import androidx.compose.ui.unit.*
+          import androidx.compose.ui.window.Dialog
+          
+          private val Pink = Color(0xFFFF4FA3)
+          private val Blue = Color(0xFF36BFFF)
+          private val Ink = Color(0xFF101326)
+          private val songs = listOf("Bholenath Song", "Mahadev Bhajan", "Har Har Mahadev", "Shiv Tandav", "Jai Shri Shankar", "Sad Song", "Love Song")
+          
+          class MainActivity : ComponentActivity() {
+            override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); setContent { MusicApp() } }
+          }
+          @Composable fun MusicApp() {
+            var query by remember { mutableStateOf("") }
+            var liked by remember { mutableStateOf(setOf<String>()) }
+            var saved by remember { mutableStateOf(setOf<String>()) }
+            var playing by remember { mutableStateOf("") }
+            var tab by remember { mutableStateOf("Home") }
+            val shown = songs.filter { it.contains(query, true) && (tab != "Liked" || it in liked) && (tab != "Downloads" || it in saved) }
+            MaterialTheme(colorScheme = darkColorScheme(primary = Pink, secondary = Blue, background = Ink, surface = Color(0xFF20243B))) {
+              Surface(Modifier.fillMaxSize(), color = Ink) {
+                Column(Modifier.fillMaxSize().padding(18.dp)) {
+                  Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.MusicNote, null, tint = Pink, modifier = Modifier.size(38.dp))
+                    Column(Modifier.weight(1f)) {
+                      Text("BIJHO MUSIC", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                      Text("PLAY YOUR VIBE ✨", color = Blue, fontSize = 11.sp)
+                    }
+                    Icon(Icons.Default.GraphicEq, null, tint = Blue, modifier = Modifier.size(30.dp))
+                  }
+                  Spacer(Modifier.height(22.dp))
+                  Box(Modifier.fillMaxWidth().background(Brush.horizontalGradient(listOf(Pink, Blue)), RoundedCornerShape(24.dp)).padding(20.dp)) {
+                    Column {
+                      Text("MUSIC • FEEL • LIFE", color = Color.White.copy(alpha=.85f), fontSize=12.sp)
+                      Text("Your music, your mood.", color=Color.White, fontSize=23.sp, fontWeight=FontWeight.Bold)
+                      Text("Discover your next favourite song", color=Color.White, fontSize=13.sp)
+                    }
+                  }
+                  Spacer(Modifier.height(18.dp))
+                  OutlinedTextField(value=query, onValueChange={query=it}, modifier=Modifier.fillMaxWidth(), placeholder={Text("गाना खोजें...", color=Color.LightGray)}, leadingIcon={Icon(Icons.Default.Search,null)}, singleLine=true, shape=RoundedCornerShape(18.dp), colors=OutlinedTextFieldDefaults.colors(focusedTextColor=Color.White, unfocusedTextColor=Color.White, focusedBorderColor=Pink, unfocusedBorderColor=Blue))
+                  Spacer(Modifier.height(14.dp))
+                  Text(if(tab=="Liked") "❤️ पसंदीदा गाने" else if(tab=="Downloads") "⬇️ आपके सेव किए गाने" else "🔥 Trending Music", color=Color.White, fontSize=20.sp, fontWeight=FontWeight.Bold)
+                  Spacer(Modifier.height(8.dp))
+                  LazyColumn(Modifier.weight(1f), verticalArrangement=Arrangement.spacedBy(10.dp)) {
+                    items(shown) { song ->
+                      Row(Modifier.fillMaxWidth().background(Color(0xFF20243B), RoundedCornerShape(18.dp)).padding(12.dp), verticalAlignment=Alignment.CenterVertically) {
+                        Box(Modifier.size(48.dp).background(Brush.linearGradient(listOf(Pink,Blue)), RoundedCornerShape(14.dp)), contentAlignment=Alignment.Center) { Icon(Icons.Default.MusicNote,null,tint=Color.White,modifier=Modifier.size(28.dp)) }
+                        Column(Modifier.weight(1f).padding(horizontal=10.dp)) { Text(song, color=Color.White, fontWeight=FontWeight.SemiBold); Text(if(playing==song) "अभी चल रहा है" else "BIJHO MUSIC • Demo", color=Blue, fontSize=11.sp) }
+                        IconButton(onClick={liked=if(song in liked) liked-song else liked+song}) { Icon(if(song in liked) Icons.Default.Favorite else Icons.Default.FavoriteBorder, null, tint=Pink) }
+                        IconButton(onClick={saved=if(song in saved) saved-song else saved+song}) { Icon(if(song in saved) Icons.Default.CheckCircle else Icons.Default.Download, null, tint=Blue) }
+                        IconButton(onClick={playing=if(playing==song) "" else song}) { Icon(if(playing==song) Icons.Default.PauseCircle else Icons.Default.PlayCircle, null, tint=Color.White, modifier=Modifier.size(30.dp)) }
+                      }
+                    }
+                    if(shown.isEmpty()) item { Text("कोई गाना नहीं मिला।", color=Color.LightGray, modifier=Modifier.padding(12.dp)) }
+                  }
+                  Row(Modifier.fillMaxWidth().background(Color(0xFF20243B), RoundedCornerShape(20.dp)).padding(vertical=10.dp), horizontalArrangement=Arrangement.SpaceEvenly) {
+                    listOf("Home","Liked","Downloads").forEach { name ->
+                      TextButton(onClick={tab=name; query=""}) { Text(when(name){"Home"->"⌂ Home";"Liked"->"♥ Liked";else->"↓ Saved"}, color=if(tab==name) Pink else Color.White, fontWeight=FontWeight.Bold) }
+                    }
+                  }
+                  Text("Water Pink × Water Blue", color=Blue, modifier=Modifier.align(Alignment.CenterHorizontally).padding(top=8.dp), fontSize=11.sp)
+                }
+              }
+            }
+          }
+          EOF
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build APK
+        run: gradle assembleDebug
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIJHO-MUSIC-APP-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
